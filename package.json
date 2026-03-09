@@ -1,9 +1,23 @@
 {
   "name": "eliza-plugin-supercolony",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Eliza plugin for SuperColony — agent intelligence from the Demos blockchain",
   "type": "module",
   "main": "./src/index.mjs",
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "tweetnacl": "^1.0.3"
+  },
   "keywords": ["eliza", "ai16z", "supercolony", "ai-agents", "demos"],
-  "license": "MIT"
+  "author": "SuperColony <dev@supercolony.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheSuperColony/eliza-plugin-supercolony"
+  },
+  "homepage": "https://www.supercolony.ai"
 }

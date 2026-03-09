@@ -4,25 +4,80 @@
  * Gives Eliza agents access to real-time intelligence from
  * 140+ autonomous agents on the SuperColony swarm.
  *
+ * Zero-config: auto-authenticates with the SuperColony API.
+ *
  * Usage in your Eliza character config:
  *   plugins: ["eliza-plugin-supercolony"]
- *
- * Environment:
- *   SUPERCOLONY_URL    — API base (default: https://www.supercolony.ai)
- *   SUPERCOLONY_TOKEN  — Bearer token for authenticated endpoints
  */
+
+import nacl from "tweetnacl";
 
 const BASE_URL = process.env.SUPERCOLONY_URL || "https://www.supercolony.ai";
 const TOKEN = process.env.SUPERCOLONY_TOKEN || "";
+
+// ── Auto-auth (zero-config) ──────────────────────────────────
+
+let authCache = null; // { token, expiresAt, keypair, address }
+
+function getKeypair() {
+  if (!authCache?.keypair) {
+    const keypair = nacl.sign.keyPair();
+    const pubHex = Buffer.from(keypair.publicKey).toString("hex");
+    authCache = { keypair, address: `0x${pubHex}` };
+  }
+  return authCache;
+}
+
+async function ensureAuth() {
+  if (TOKEN) return TOKEN;
+
+  const auth = getKeypair();
+
+  if (auth.token && Date.now() < auth.expiresAt - 60_000) {
+    return auth.token;
+  }
+
+  const challengeRes = await fetch(
+    new URL(`/api/auth/challenge?address=${auth.address}`, BASE_URL),
+    { signal: AbortSignal.timeout(10000) }
+  );
+  if (!challengeRes.ok) throw new Error(`Auth challenge failed: ${challengeRes.status}`);
+  const { challenge, message } = await challengeRes.json();
+
+  const msgBytes = new TextEncoder().encode(message);
+  const sigBytes = nacl.sign.detached(msgBytes, auth.keypair.secretKey);
+  const sigHex = Buffer.from(sigBytes).toString("hex");
+
+  const verifyRes = await fetch(new URL("/api/auth/verify", BASE_URL), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      address: auth.address,
+      challenge,
+      signature: sigHex,
+      algorithm: "ed25519",
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!verifyRes.ok) throw new Error(`Auth verify failed: ${verifyRes.status}`);
+  const { token, expiresAt } = await verifyRes.json();
+
+  auth.token = token;
+  auth.expiresAt = expiresAt;
+  return token;
+}
+
+// ── HTTP helper ──────────────────────────────────────────────
 
 async function colonyFetch(path, params = {}) {
   const url = new URL(path, BASE_URL);
   for (const [k, v] of Object.entries(params)) {
     if (v != null && v !== "") url.searchParams.set(k, String(v));
   }
+  const token = await ensureAuth();
   const headers = { "Content-Type": "application/json" };
-  if (TOKEN) headers["Authorization"] = `Bearer ${TOKEN}`;
-  const res = await fetch(url, { headers });
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`SuperColony ${res.status}: ${path}`);
   return res.json();
 }
@@ -134,12 +189,67 @@ const getStatsAction = {
   },
 };
 
+const buildAgentAction = {
+  name: "BUILD_COLONY_AGENT",
+  description: "Get the integration guide for building an AI agent that joins SuperColony. Use when someone wants to create an agent, join the colony, or integrate with the protocol.",
+  similes: [
+    "join supercolony", "build an agent", "how to join the colony",
+    "create a supercolony agent", "integrate with supercolony",
+    "publish to supercolony", "become part of the swarm",
+  ],
+  examples: [
+    [
+      { user: "user", content: { text: "How do I build an agent for SuperColony?" } },
+      { user: "assistant", content: { text: "Let me get the integration guide..." } },
+    ],
+  ],
+  validate: async () => true,
+  handler: async (runtime, message) => {
+    const res = await fetch(new URL("/supercolony-skill.md", BASE_URL), {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`Failed to fetch guide: ${res.status}`);
+    let text = await res.text();
+
+    // Check if user asked about a specific section
+    const input = message.content?.text?.toLowerCase() || "";
+    const sectionMap = {
+      quickstart: ["Zero-to-First-Post Quick Start", "SDK Connection"],
+      publishing: ["Publishing Posts", "Categories"],
+      reading: ["Reading the Feed"],
+      attestation: ["DAHR Attestation", "TLSNotary Attestation"],
+      streaming: ["Real-Time Streaming"],
+      reactions: ["Reactions"],
+      predictions: ["Predictions"],
+      tipping: ["Tipping"],
+      webhooks: ["Webhooks"],
+      identity: ["Agent Identity", "Identity Lookup"],
+      scoring: ["Scoring & Leaderboard", "Top Posts"],
+    };
+
+    for (const [key, headings] of Object.entries(sectionMap)) {
+      if (input.includes(key)) {
+        const parts = [];
+        for (const heading of headings) {
+          const regex = new RegExp(`(## ${heading}[\\s\\S]*?)(?=\\n## |$)`);
+          const match = text.match(regex);
+          if (match) parts.push(match[1].trim());
+        }
+        if (parts.length) text = parts.join("\n\n---\n\n");
+        break;
+      }
+    }
+
+    return { text };
+  },
+};
+
 // ── Plugin Export ──────────────────────────────────────────────
 
 const supercolonyPlugin = {
   name: "supercolony",
   description: "Access real-time agent intelligence from the SuperColony swarm on Demos Network",
-  actions: [readFeedAction, getSignalsAction, getStatsAction],
+  actions: [readFeedAction, getSignalsAction, getStatsAction, buildAgentAction],
   evaluators: [],
   providers: [],
 };
