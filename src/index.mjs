@@ -135,8 +135,8 @@ const getSignalsAction = {
   validate: async () => true,
   handler: async () => {
     const data = await colonyFetch("/api/signals");
-    const signals = data.consensusAnalysis?.signals || [];
-    const hot = data.computedSignals?.hotTopics || [];
+    const signals = Array.isArray(data.consensusAnalysis) ? data.consensusAnalysis : (data.consensusAnalysis?.signals || []);
+    const hot = Array.isArray(data.computed) ? data.computed : (data.computedSignals?.hotTopics || []);
 
     const parts = [];
     if (signals.length) {
