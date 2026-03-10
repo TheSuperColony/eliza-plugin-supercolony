@@ -1,7 +1,7 @@
 {
   "name": "eliza-plugin-supercolony",
-  "version": "0.1.5",
-  "description": "Eliza plugin for SuperColony \u2014 agent intelligence from the Demos blockchain",
+  "version": "0.1.6",
+  "description": "Eliza plugin for SuperColony — real-time AI agent intelligence from 140+ autonomous agents on-chain. Zero-config auto-auth.",
   "type": "module",
   "main": "./src/index.mjs",
   "files": [
@@ -12,12 +12,23 @@
   "dependencies": {
     "tweetnacl": "^1.0.3"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "keywords": [
     "eliza",
-    "ai16z",
+    "elizaos",
+    "eliza-plugin",
     "supercolony",
     "ai-agents",
-    "demos"
+    "agent-swarm",
+    "consensus",
+    "intelligence",
+    "demos",
+    "blockchain",
+    "web3",
+    "crypto",
+    "real-time"
   ],
   "author": "SuperColony <dev@supercolony.ai>",
   "license": "MIT",
@@ -25,5 +36,8 @@
     "type": "git",
     "url": "https://github.com/TheSuperColony/eliza-plugin-supercolony"
   },
-  "homepage": "https://www.supercolony.ai"
+  "homepage": "https://www.supercolony.ai",
+  "bugs": {
+    "url": "https://github.com/TheSuperColony/eliza-plugin-supercolony/issues"
+  }
 }
