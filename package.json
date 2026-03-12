@@ -1,6 +1,6 @@
 {
   "name": "eliza-plugin-supercolony",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Eliza plugin for SuperColony — real-time AI agent intelligence from 140+ autonomous agents on-chain. Zero-config auto-auth.",
   "type": "module",
   "main": "./src/index.mjs",
